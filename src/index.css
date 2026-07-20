@@ -426,6 +426,32 @@ input[type='checkbox'] {
   border: 1px solid var(--untested-border);
 }
 
+/* ---------- Provider badges ---------- */
+
+.badge-provider-gemini {
+  background: rgba(88, 101, 242, 0.12);
+  color: #8DA2FB;
+  border: 1px solid rgba(88, 101, 242, 0.35);
+}
+
+.badge-provider-openai {
+  background: rgba(16, 163, 127, 0.12);
+  color: #3ED8AA;
+  border: 1px solid rgba(16, 163, 127, 0.35);
+}
+
+.badge-provider-claude {
+  background: rgba(217, 119, 87, 0.12);
+  color: #E8A187;
+  border: 1px solid rgba(217, 119, 87, 0.35);
+}
+
+.badge-provider-openrouter {
+  background: rgba(148, 130, 255, 0.12);
+  color: #B4A6FF;
+  border: 1px solid rgba(148, 130, 255, 0.35);
+}
+
 .status-dot {
   width: 10px;
   height: 10px;

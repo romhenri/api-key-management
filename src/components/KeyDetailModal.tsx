@@ -1,22 +1,25 @@
 import { useState } from 'react';
 import { ApiKeyData } from '../services/gemini';
 import { Tier, representativeLimit, usageForToday, fmtNum } from '../services/quota';
+import { Provider, PROVIDERS, PROVIDER_LABELS } from '../services/providers';
 
 interface KeyDetailModalProps {
   keyData: ApiKeyData | null;
   onClose: () => void;
   onSetTier: (id: string, tier: Tier) => void;
+  onSetProvider: (id: string, provider: Provider) => void;
   onOpenTester: (key: ApiKeyData) => void;
   onEdit: (key: ApiKeyData) => void;
 }
 
-export default function KeyDetailModal({ keyData, onClose, onSetTier, onOpenTester, onEdit }: KeyDetailModalProps) {
+export default function KeyDetailModal({ keyData, onClose, onSetTier, onSetProvider, onOpenTester, onEdit }: KeyDetailModalProps) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
 
   if (!keyData) return null;
   const k = keyData;
 
+  const provider: Provider = k.provider ?? 'gemini';
   const tier: Tier = k.tier ?? 'unknown';
   const usage = usageForToday(k.usage);
   const limit = representativeLimit(tier, k.models);
@@ -41,6 +44,25 @@ export default function KeyDetailModal({ keyData, onClose, onSetTier, onOpenTest
         </div>
 
         <div className="modal-body">
+          {/* Provider */}
+          <div style={sectionStyle}>
+            <div className="flex-between" style={{ marginBottom: '4px', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ ...labelStyle, marginBottom: 0 }}>Provider</div>
+              <select
+                className="select-input"
+                style={{ width: 'auto', height: '30px', padding: '0 8px', fontSize: '12px' }}
+                value={provider}
+                onChange={(e) => onSetProvider(k.id, e.target.value as Provider)}
+                title="Changing the provider resets the check status"
+              >
+                {PROVIDERS.map((p) => (
+                  <option key={p} value={p}>{PROVIDER_LABELS[p]}</option>
+                ))}
+              </select>
+            </div>
+            <span className={`badge badge-provider-${provider}`}>{PROVIDER_LABELS[provider]}</span>
+          </div>
+
           {/* Status */}
           <div style={sectionStyle}>
             <div style={labelStyle}>Status</div>
@@ -180,6 +202,12 @@ export default function KeyDetailModal({ keyData, onClose, onSetTier, onOpenTest
               {k.lastChecked ? new Date(k.lastChecked).toLocaleString('pt-BR') : 'Nunca'}
             </div>
           </div>
+          <div style={sectionStyle}>
+            <div style={labelStyle}>Adicionada em</div>
+            <div style={{ fontSize: '13px', color: 'var(--ink)' }}>
+              {k.addedAt ? new Date(k.addedAt).toLocaleString('pt-BR') : 'Desconhecido'}
+            </div>
+          </div>
         </div>
 
         <div className="modal-footer" style={{ padding: '16px 0 0 0', background: 'transparent' }}>
@@ -187,7 +215,8 @@ export default function KeyDetailModal({ keyData, onClose, onSetTier, onOpenTest
           <button
             className="btn btn-primary"
             onClick={() => onOpenTester(k)}
-            disabled={k.status !== 'valid'}
+            disabled={k.status !== 'valid' || provider !== 'gemini'}
+            title={provider !== 'gemini' ? 'Test console currently only supports Gemini keys' : undefined}
           >
             Testar no Console
           </button>

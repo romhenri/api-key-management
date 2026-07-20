@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { ApiKeyData } from '../services/gemini';
 import { Tier } from '../services/quota';
+import { Provider, PROVIDERS, PROVIDER_LABELS } from '../services/providers';
 import TagSelector from './TagSelector';
 
 interface KeyModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (keys: { key: string; label: string; notes?: string; tier?: Tier; tags?: string[] }[]) => void;
+  onSave: (keys: { key: string; label: string; notes?: string; tier?: Tier; tags?: string[]; provider?: Provider }[]) => void;
   editingKey?: ApiKeyData | null;
 }
 
@@ -16,8 +17,10 @@ export default function KeyModal({ isOpen, onClose, onSave, editingKey }: KeyMod
   const [singleLabel, setSingleLabel] = useState(editingKey ? editingKey.label : '');
   const [singleNotes, setSingleNotes] = useState(editingKey ? editingKey.notes || '' : '');
   const [singleTier, setSingleTier] = useState<Tier>(editingKey?.tier ?? 'unknown');
+  const [singleProvider, setSingleProvider] = useState<Provider>(editingKey?.provider ?? 'gemini');
   const [singleTags, setSingleTags] = useState<string[]>(editingKey?.tags ?? []);
   const [bulkText, setBulkText] = useState('');
+  const [bulkProvider, setBulkProvider] = useState<Provider>('gemini');
 
   // The modal stays mounted, so useState initializers only run once. Re-seed the
   // form with the target key's current info every time it opens (or the key changes).
@@ -28,8 +31,10 @@ export default function KeyModal({ isOpen, onClose, onSave, editingKey }: KeyMod
     setSingleLabel(editingKey?.label ?? '');
     setSingleNotes(editingKey?.notes ?? '');
     setSingleTier(editingKey?.tier ?? 'unknown');
+    setSingleProvider(editingKey?.provider ?? 'gemini');
     setSingleTags(editingKey?.tags ?? []);
     setBulkText('');
+    setBulkProvider('gemini');
   }, [isOpen, editingKey]);
 
   if (!isOpen) return null;
@@ -43,7 +48,8 @@ export default function KeyModal({ isOpen, onClose, onSave, editingKey }: KeyMod
       label: singleLabel.trim() || 'Unnamed key',
       notes: singleNotes.trim(),
       tier: singleTier,
-      tags: singleTags
+      tags: singleTags,
+      provider: singleProvider
     }]);
 
     // Reset
@@ -51,6 +57,7 @@ export default function KeyModal({ isOpen, onClose, onSave, editingKey }: KeyMod
     setSingleLabel('');
     setSingleNotes('');
     setSingleTier('unknown');
+    setSingleProvider('gemini');
     setSingleTags([]);
     onClose();
   };
@@ -60,7 +67,7 @@ export default function KeyModal({ isOpen, onClose, onSave, editingKey }: KeyMod
     if (!bulkText.trim()) return;
 
     const lines = bulkText.split('\n');
-    const parsedKeys: { key: string; label: string; notes?: string }[] = [];
+    const parsedKeys: { key: string; label: string; notes?: string; provider?: Provider }[] = [];
 
     lines.forEach((line, index) => {
       let trimmed = line.trim();
@@ -105,7 +112,8 @@ export default function KeyModal({ isOpen, onClose, onSave, editingKey }: KeyMod
         parsedKeys.push({
           key,
           label: label || `Batch Key ${index + 1}`,
-          notes: 'Bulk imported'
+          notes: 'Bulk imported',
+          provider: bulkProvider
         });
       }
     });
@@ -152,12 +160,12 @@ export default function KeyModal({ isOpen, onClose, onSave, editingKey }: KeyMod
           {activeTab === 'single' || editingKey ? (
             <form onSubmit={handleSingleSubmit}>
               <div className="form-group">
-                <label htmlFor="key">Gemini API Key</label>
+                <label htmlFor="key">API Key</label>
                 <input
                   id="key"
                   type="password"
                   className="input-text"
-                  placeholder="AIzaSy..."
+                  placeholder="Paste the provider's API key..."
                   value={singleKey}
                   onChange={(e) => setSingleKey(e.target.value)}
                   required
@@ -175,6 +183,20 @@ export default function KeyModal({ isOpen, onClose, onSave, editingKey }: KeyMod
                   onChange={(e) => setSingleLabel(e.target.value)}
                   required
                 />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="provider">Provider</label>
+                <select
+                  id="provider"
+                  className="select-input"
+                  value={singleProvider}
+                  onChange={(e) => setSingleProvider(e.target.value as Provider)}
+                >
+                  {PROVIDERS.map((p) => (
+                    <option key={p} value={p}>{PROVIDER_LABELS[p]}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-group">
@@ -254,6 +276,20 @@ export default function KeyModal({ isOpen, onClose, onSave, editingKey }: KeyMod
                   GEMINI_API_KEY=AIzaSy_ExemploChave2<br />
                   AIzaSy_ExemploChave3 | Sandbox Dev
                 </code>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="bulkProvider">Provider (applies to all keys below)</label>
+                <select
+                  id="bulkProvider"
+                  className="select-input"
+                  value={bulkProvider}
+                  onChange={(e) => setBulkProvider(e.target.value as Provider)}
+                >
+                  {PROVIDERS.map((p) => (
+                    <option key={p} value={p}>{PROVIDER_LABELS[p]}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-group">

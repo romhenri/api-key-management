@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ApiKeyData } from '../services/gemini';
 import { Tier } from '../services/quota';
+import { Provider, PROVIDERS, PROVIDER_LABELS } from '../services/providers';
 import KeyTable from './KeyTable';
 
 interface DashboardProps {
@@ -14,6 +15,7 @@ interface DashboardProps {
   onAddKeyClick: () => void;
   onOpenTester: (key: ApiKeyData) => void;
   onSetTier: (id: string, tier: Tier) => void;
+  onSetProvider: (id: string, provider: Provider) => void;
   onUpdateTags: (id: string, tags: string[]) => void;
   onClassifyDuplicates: () => void;
   checkingIds: string[];
@@ -30,12 +32,14 @@ export default function Dashboard({
   onAddKeyClick,
   onOpenTester,
   onSetTier,
+  onSetProvider,
   onUpdateTags,
   onClassifyDuplicates,
   checkingIds
 }: DashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'valid' | 'invalid' | 'untested' | 'archived'>('all');
+  const [providerFilter, setProviderFilter] = useState<'all' | Provider>('all');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const viewingArchived = statusFilter === 'archived';
@@ -65,7 +69,9 @@ export default function Dashboard({
             (statusFilter === 'invalid' && k.status === 'invalid') ||
             (statusFilter === 'untested' && k.status === 'untested'));
 
-    return matchesSearch && matchesStatus;
+    const matchesProvider = providerFilter === 'all' || (k.provider ?? 'gemini') === providerFilter;
+
+    return matchesSearch && matchesStatus && matchesProvider;
   });
 
   const handleSelectKey = (id: string, selected: boolean) => {
@@ -149,6 +155,18 @@ export default function Dashboard({
               <option value="untested">Untested</option>
               <option value="archived">Archived</option>
             </select>
+
+            <select
+              className="select-input"
+              style={{ width: '150px' }}
+              value={providerFilter}
+              onChange={(e) => setProviderFilter(e.target.value as any)}
+            >
+              <option value="all">All Providers</option>
+              {PROVIDERS.map((p) => (
+                <option key={p} value={p}>{PROVIDER_LABELS[p]}</option>
+              ))}
+            </select>
           </div>
 
           {/* Right actions */}
@@ -197,6 +215,7 @@ export default function Dashboard({
         onDelete={onDeleteKey}
         onOpenTester={onOpenTester}
         onSetTier={onSetTier}
+        onSetProvider={onSetProvider}
         onUpdateTags={onUpdateTags}
         selectedIds={selectedIds}
         onSelectKey={handleSelectKey}

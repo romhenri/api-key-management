@@ -10,7 +10,9 @@ interface TesterConsoleProps {
 }
 
 export default function TesterConsole({ keys, preselectedKeyId, onRecordUsage, onSetTier }: TesterConsoleProps) {
-  const validKeys = keys.filter((k) => k.status === 'valid');
+  // Only Gemini keys can be exercised here — generation calls are wired to
+  // the Gemini API. Other providers are validated elsewhere but not tested.
+  const validKeys = keys.filter((k) => k.status === 'valid' && (k.provider ?? 'gemini') === 'gemini');
 
   const [selectedKeyId, setSelectedKeyId] = useState('');
   const [selectedModel, setSelectedModel] = useState('');

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
-import { ApiKeyData, validateGeminiKey } from './services/gemini';
+import { ApiKeyData } from './services/gemini';
 import { Tier, bumpUsage } from './services/quota';
+import { Provider, PROVIDERS, validateProviderKey } from './services/providers';
 import Dashboard from './components/Dashboard';
 import TesterConsole from './components/TesterConsole';
 import QuotaReference from './components/QuotaReference';
@@ -32,7 +33,27 @@ export default function App() {
     try {
       const stored = localStorage.getItem('gemini_keys_consultant');
       if (stored) {
-        setKeys(JSON.parse(stored));
+        const parsed: ApiKeyData[] = JSON.parse(stored);
+
+        // Backfill: keys saved before the "addedAt" field existed have no
+        // recorded creation date. We don't know their real add date, so
+        // approximate it — OpenRouter keys as today, everything else as
+        // yesterday (this app's provider support predates OpenRouter).
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const todayIso = new Date().toISOString();
+        const yesterdayIso = yesterday.toISOString();
+
+        const backfilled = parsed.map((k) =>
+          k.addedAt
+            ? k
+            : { ...k, addedAt: (k.provider ?? 'gemini') === 'openrouter' ? todayIso : yesterdayIso }
+        );
+
+        setKeys(backfilled);
+        if (backfilled.some((k, i) => k.addedAt !== parsed[i]?.addedAt)) {
+          localStorage.setItem('gemini_keys_consultant', JSON.stringify(backfilled));
+        }
       }
     } catch (e) {
       console.error('Failed to load keys from localStorage:', e);
@@ -50,7 +71,7 @@ export default function App() {
   };
 
   // Add or update keys
-  const handleSaveKeys = (savedList: { key: string; label: string; notes?: string; tier?: Tier; tags?: string[] }[]) => {
+  const handleSaveKeys = (savedList: { key: string; label: string; notes?: string; tier?: Tier; tags?: string[]; provider?: Provider }[]) => {
     if (editingKey) {
       // Edit mode — block renaming a key onto another existing key.
       const dup = keys.find((k) => k.id !== editingKey.id && k.key === savedList[0].key);
@@ -68,6 +89,7 @@ export default function App() {
             notes: savedList[0].notes,
             tier: savedList[0].tier ?? k.tier ?? 'unknown',
             tags: savedList[0].tags ?? k.tags ?? [],
+            provider: savedList[0].provider ?? k.provider ?? 'gemini',
             // Reset verification status if the key string was updated
             status: hasChanged ? ('untested' as const) : k.status,
             models: hasChanged ? [] : k.models,
@@ -101,7 +123,9 @@ export default function App() {
           models: [],
           notes: item.notes,
           tier: item.tier ?? ('unknown' as Tier),
-          tags: item.tags ?? []
+          tags: item.tags ?? [],
+          provider: item.provider ?? ('gemini' as Provider),
+          addedAt: new Date().toISOString()
         }));
 
       if (newEntries.length > 0) {
@@ -121,6 +145,18 @@ export default function App() {
   // Set a key's billing tier (drives quota estimates).
   const handleSetTier = (id: string, tier: Tier) => {
     saveKeys(keys.map((k) => (k.id === id ? { ...k, tier } : k)));
+  };
+
+  // Set a key's provider. Changing it invalidates any prior check, since
+  // each provider is validated against a different API.
+  const handleSetProvider = (id: string, provider: Provider) => {
+    saveKeys(
+      keys.map((k) =>
+        k.id === id
+          ? { ...k, provider, status: 'untested' as const, models: [], errorDetails: undefined }
+          : k
+      )
+    );
   };
 
   // Replace a key's tags (inline editing from the table).
@@ -207,7 +243,7 @@ export default function App() {
 
     setCheckingIds((prev) => [...prev, id]);
 
-    const result = await validateGeminiKey(keyData.key);
+    const result = await validateProviderKey(keyData.provider ?? 'gemini', keyData.key);
 
     const updated = keys.map((k) => {
       if (k.id === id) {
@@ -270,11 +306,14 @@ export default function App() {
     }
 
     // We clean up sensitive metadata, keeping only what is required
-    const cleanExport = keys.map(({ key, label, notes, tags }) => ({
+    const cleanExport = keys.map(({ key, label, notes, tags, status, provider, addedAt }) => ({
       key,
       label,
       notes,
-      tags
+      tags,
+      status,
+      provider: provider ?? 'gemini',
+      addedAt
     }));
 
     const dataStr = JSON.stringify(cleanExport, null, 2);
@@ -283,7 +322,7 @@ export default function App() {
 
     const link = document.createElement('a');
     link.href = url;
-    link.download = `gemini_api_keys_export_${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `api_keys_export_${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -318,7 +357,11 @@ export default function App() {
                 status: 'untested' as const,
                 models: [],
                 notes: item.notes || 'Imported from JSON backup',
-                tags: Array.isArray(item.tags) ? item.tags : []
+                tags: Array.isArray(item.tags) ? item.tags : [],
+                provider: PROVIDERS.includes(item.provider) ? (item.provider as Provider) : 'gemini',
+                // Preserve the original "added" date from the backup file if present,
+                // otherwise this import is the first time we've seen the key.
+                addedAt: typeof item.addedAt === 'string' ? item.addedAt : new Date().toISOString()
               });
               importedCount++;
             }
@@ -445,6 +488,7 @@ export default function App() {
               }}
               onOpenTester={handleOpenTester}
               onSetTier={handleSetTier}
+              onSetProvider={handleSetProvider}
               onUpdateTags={handleUpdateTags}
               onClassifyDuplicates={handleClassifyDuplicates}
               checkingIds={checkingIds}

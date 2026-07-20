@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ApiKeyData } from '../services/gemini';
 import { Tier } from '../services/quota';
+import { Provider, PROVIDER_LABELS } from '../services/providers';
 import KeyDetailModal from './KeyDetailModal';
 import { SUGGESTED_TAGS } from './TagSelector';
 import { IconInfo, IconRefresh, IconZap, IconArchive, IconRestore, IconCopy, IconCheckMark, IconTrash, IconEdit } from './icons';
@@ -13,6 +14,7 @@ interface KeyTableProps {
   onDelete: (id: string) => void;
   onOpenTester: (key: ApiKeyData) => void;
   onSetTier: (id: string, tier: Tier) => void;
+  onSetProvider: (id: string, provider: Provider) => void;
   onUpdateTags: (id: string, tags: string[]) => void;
   selectedIds: string[];
   onSelectKey: (id: string, selected: boolean) => void;
@@ -28,6 +30,7 @@ export default function KeyTable({
   onDelete,
   onOpenTester,
   onSetTier,
+  onSetProvider,
   onUpdateTags,
   selectedIds,
   onSelectKey,
@@ -91,10 +94,11 @@ export default function KeyTable({
               </th>
               <th>Label</th>
               <th>API Key</th>
+              <th>Provider</th>
               <th>Status</th>
               <th style={{ minWidth: '120px', width: 'auto' }}>Tags</th>
               <th>Models</th>
-              <th>Last Checked</th>
+              <th>Added</th>
               <th style={{ textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
@@ -148,6 +152,11 @@ export default function KeyTable({
                         {copiedId === k.id ? <IconCheckMark /> : <IconCopy />}
                       </button>
                     </div>
+                  </td>
+                  <td>
+                    <span className={`badge badge-provider-${k.provider ?? 'gemini'}`}>
+                      {PROVIDER_LABELS[k.provider ?? 'gemini']}
+                    </span>
                   </td>
                   <td>
                     {k.status === 'valid' && (
@@ -233,7 +242,7 @@ export default function KeyTable({
                     )}
                   </td>
                   <td style={{ color: 'var(--ink-muted)', fontSize: '13px' }}>
-                    {k.lastChecked ? new Date(k.lastChecked).toLocaleString('en-US') : 'Never'}
+                    {k.addedAt ? new Date(k.addedAt).toLocaleDateString('en-US') : 'Unknown'}
                   </td>
                   <td>
                     <div className="flex-center" style={{ justifyContent: 'flex-end', gap: '4px' }}>
@@ -260,8 +269,8 @@ export default function KeyTable({
                       <button
                         className="btn btn-secondary btn-xs btn-icon"
                         onClick={() => onOpenTester(k)}
-                        disabled={k.status !== 'valid'}
-                        title="Test a request in the console"
+                        disabled={k.status !== 'valid' || (k.provider ?? 'gemini') !== 'gemini'}
+                        title={(k.provider ?? 'gemini') !== 'gemini' ? 'Test console currently only supports Gemini keys' : 'Test a request in the console'}
                       >
                         <IconZap />
                       </button>
@@ -309,6 +318,7 @@ export default function KeyTable({
         keyData={viewingKey}
         onClose={() => setViewingId(null)}
         onSetTier={onSetTier}
+        onSetProvider={onSetProvider}
         onOpenTester={(key) => { setViewingId(null); onOpenTester(key); }}
         onEdit={(key) => { setViewingId(null); onEdit(key); }}
       />

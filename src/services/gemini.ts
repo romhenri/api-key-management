@@ -1,4 +1,5 @@
 import { Tier, UsageStat } from './quota';
+import type { Provider } from './providers';
 
 export interface ApiKeyData {
   id: string;
@@ -6,9 +7,15 @@ export interface ApiKeyData {
   label: string;
   status: 'untested' | 'valid' | 'invalid';
   lastChecked?: string;
+  // When this key was first added/imported into the app (ISO timestamp).
+  // Absent on keys created before this field existed.
+  addedAt?: string;
   models: string[];
   errorDetails?: string;
   notes?: string;
+  // Which LLM provider this key belongs to. Defaults to 'gemini' when unset —
+  // this app started as Gemini-only, so older stored keys have no provider.
+  provider?: Provider;
   // Billing tier for quota estimates. Defaults to 'unknown' and can be set
   // by the user or inferred when the key hits a rate limit (429).
   tier?: Tier;
